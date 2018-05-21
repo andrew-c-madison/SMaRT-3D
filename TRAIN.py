@@ -17,6 +17,8 @@ import BuildNetVgg16
 import os
 import CheckVGG16Model
 import scipy.misc as misc
+from sklearn.metrics import accuracy_score
+
 #...........................................Input and output folders.................................................
 #Train_Image_Dir="/home/andy/Documents/SMaRT-3D/tensorflow/FCN_pixel/Data/Train/images/" # Images and labels for training
 Train_Image_Dir="Data/Train/images/" # Images and labels for training
@@ -29,13 +31,16 @@ if not os.path.exists(logs_dir): os.makedirs(logs_dir)
 model_path="Model_Zoo/vgg16.npy"# "Path to pretrained vgg16 model for encoder"
 learning_rate=1e-5 #Learning rate for Adam Optimizer
 CheckVGG16Model.CheckVGG16(model_path)# Check if pretrained vgg16 model avialable and if not try to download it
+
 #-----------------------------Other Paramters------------------------------------------------------------------------
 TrainLossTxtFile=logs_dir+"TrainLoss.txt" #Where train losses will be writen
 ValidLossTxtFile=logs_dir+"ValidationLoss.txt"# Where validation losses will be writen
+ValidAccTxtFile=logs_dir+"ValidationAccuracy.txt" # Where accuracy will be written
 Batch_Size=1 # Number of files per training iteration
 Weight_Loss_Rate=5e-4# Weight for the weight decay loss function
 MAX_ITERATION = int(100010) # Max  number of training iteration
 NUM_CLASSES = 4 #Number of class for fine grain +number of class for solid liquid+Number of class for empty none empty +Number of class for vessel background
+
 ######################################Solver for model   training#####################################################################################################################
 def train(loss_val, var_list):
     optimizer = tf.train.AdamOptimizer(learning_rate)
@@ -46,10 +51,11 @@ def train(loss_val, var_list):
 ################################################################################################################################################################################
 def main(argv=None):
     tf.reset_default_graph()
-    keep_prob= tf.placeholder(tf.float32, name="keep_probabilty") #Dropout probability
+    keep_prob = tf.placeholder(tf.float32, name="keep_probabilty") #Dropout probability
 #.........................Placeholders for input image and labels...........................................................................................
     image = tf.placeholder(tf.float32, shape=[None, None, None, 3], name="input_image") #Input image batch first dimension image number second dimension width third dimension height 4 dimension RGB
     GTLabel = tf.placeholder(tf.int32, shape=[None, None, None, 1], name="GTLabel")#Ground truth labels for training
+
   #.........................Build FCN Net...............................................................................................
     Net =  BuildNetVgg16.BUILD_NET_VGG16(vgg16_npy_path=model_path) #Create class for the network
     Net.build(image, NUM_CLASSES,keep_prob)# Create the net and load intial weights
@@ -58,10 +64,13 @@ def main(argv=None):
    #....................................Create solver for the net............................................................................................
     trainable_var = tf.trainable_variables() # Collect all trainable variables for the net
     train_op = train(Loss, trainable_var) #Create Train Operation for the net
+
+
 #----------------------------------------Create reader for data set--------------------------------------------------------------------------------------------------------------
-    TrainReader = Data_Reader.Data_Reader(Train_Image_Dir,  GTLabelDir=Train_Label_Dir,BatchSize=Batch_Size) #Reader for training data
+    TrainReader = Data_Reader.Data_Reader(Train_Image_Dir,  GTLabelDir=Train_Label_Dir, BatchSize=Batch_Size) #Reader for training data
     if UseValidationSet:
-        ValidReader = Data_Reader.Data_Reader(Valid_Image_Dir,  GTLabelDir=Valid_Labels_Dir,BatchSize=Batch_Size) # Reader for validation data
+        ValidReader = Data_Reader.Data_Reader(Valid_Image_Dir,  GTLabelDir=Valid_Labels_Dir, BatchSize=Batch_Size) # Reader for validation data
+
     sess = tf.Session() #Start Tensorflow session
 # -------------load trained model if exist-----------------------------------------------------------------
     print("Setting up Saver...")
@@ -80,9 +89,13 @@ def main(argv=None):
        f = open(ValidLossTxtFile, "w")
        f.write("Iteration\tloss\t Learning Rate=" + str(learning_rate))
        f.close()
+
+       f = open(ValidAccTxtFile, "w")
+       f.write("Iteration\tloss\t Learning Rate=" + str(learning_rate))
+       f.close()
 #..............Start Training loop: Main Training....................................................................
     for itr in range(MAX_ITERATION):
-        Images,  GTLabels =TrainReader.ReadAndAugmentNextBatch() # Load  augmeted images and ground true labels for training
+        Images,  GTLabels = TrainReader.ReadAndAugmentNextBatch() # Load  augmeted images and ground true labels for training
         feed_dict = {image: Images,GTLabel:GTLabels, keep_prob: 0.5}
         sess.run(train_op, feed_dict=feed_dict) # Train one cycle
 # --------------Save trained model------------------------------------------------------------------------------------------------------------------------------------------
@@ -99,23 +112,45 @@ def main(argv=None):
             with open(TrainLossTxtFile, "a") as f:
                 f.write("\n"+str(itr)+"\t"+str(TLoss))
                 f.close()
+
+
 #......................Write and display Validation Set Loss by running loss on all validation images.....................................................................
         if UseValidationSet and itr % 10 == 0:
+            SumAcc=np.float64(0.0)
             SumLoss=np.float64(0.0)
             NBatches=np.int(np.ceil(ValidReader.NumFiles/ValidReader.BatchSize))
             print("Calculating Validation on " + str(ValidReader.NumFiles) + " Images")
             for i in range(NBatches):# Go over all validation image
                 Images, GTLabels= ValidReader.ReadNextBatchClean() # load validation image and ground true labels
-                feed_dict = {image: Images,GTLabel: GTLabels ,keep_prob: 1.0}
+                feed_dict = {image: Images,GTLabel: GTLabels, keep_prob: 1.0}
                 # Calculate loss for all labels set
                 TLoss = sess.run(Loss, feed_dict=feed_dict)
                 SumLoss+=TLoss
-                NBatches+=1
+
+
+                # Compute validation accuracy
+                pred = sess.run(Net.Pred, feed_dict={image: Images, keep_prob: 1.0})
+                acc = accuracy_score(np.squeeze(GTLabels).ravel(), np.squeeze(pred).ravel())
+
+                SumAcc += acc
+
+                #NBatches+=1
+                #print(NBatches)
+
+            SumAcc/=NBatches
             SumLoss/=NBatches
             print("Validation Loss: "+str(SumLoss))
             with open(ValidLossTxtFile, "a") as f:
                 f.write("\n" + str(itr) + "\t" + str(SumLoss))
                 f.close()
+
+
+            print("Accuracy: "+str(SumAcc))
+            with open(ValidAccTxtFile, "a") as f:
+                f.write("\n" + str(itr) + "\t" + str(SumAcc))
+                f.close()
+
+
 
 
 ##################################################################################################################################################
