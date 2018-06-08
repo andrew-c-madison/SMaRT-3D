@@ -9,7 +9,7 @@ class Data_Reader:
 		self.NumFiles = 0 			# Number of files in reader
 		self.Epoch = 0 				# Training epochs passed
 		self.itr = 0 				# Iteration
-		self.Image_Dir = ImageDir 	# Image Dir
+		self.Image_Dir = ImageDir 		# Image Dir
 		if GTLabelDir=="":			# If no label dir use
 			self.ReadLabels=False
 		else:
@@ -90,7 +90,7 @@ class Data_Reader:
 				if self.ReadLabels: 
 					Labels= np.zeros([batch_size,Cry,Crx,1], dtype=np.int)
             
-            # Resize and strecth image and labels
+            		# Resize and strecth image and labels
 			Img = misc.imresize(Img, [Sy,Sx], interp='bilinear')
 			if self.ReadLabels: 
 				Label = misc.imresize(Label, [Sy, Sx], interp='nearest')
@@ -131,7 +131,7 @@ class Data_Reader:
 					Img *=np.ones(Img.shape)*0.95 + \
 							np.random.rand(Img.shape[0],Img.shape[1],Img.shape[2])*0.1
             
-            # Correct erroneously high or low values
+            		# Correct erroneously high or low values
 			Img[Img>255] = 255
 			Img[Img<0] = 0
 		      
@@ -146,7 +146,7 @@ class Data_Reader:
 		else:
 			return Images
 
-    # Read next batch of images and labels with no augmentation
+    	# Read next batch of images and labels with no augmentation
 	def ReadNextBatchClean(self): 
 		if self.itr>=self.NumFiles: # End of an epoch
 			self.itr = 0
@@ -179,7 +179,7 @@ class Data_Reader:
 			if self.ReadLabels:
 				Labels[f, :, :, 0] = Label
 			  
-        # Return images and labels
+        	# Return images and labels
 		if self.ReadLabels:
 			return Images, Labels  
 		else:
