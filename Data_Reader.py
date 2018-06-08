@@ -67,11 +67,11 @@ class Data_Reader:
 
 		# Augument Images and labels
 		for f in range(batch_size):
-			Img = misc.imread(self.Image_Dir + "/" + self.SFiles[self.itr])
+			Img = misc.imread(os.path.join(self.Image_Dir, self.SFiles[self.itr])
 			Img = Img[:,:,0:3]
-			LabelName = self.SFiles[self.itr][0:-4]+".png" # Assume Label are PNGs
+			LabelName = self.SFiles[self.itr][0:-4] + ".png" # Assume Label are PNGs
 			if self.ReadLabels:
-				Label = misc.imread(self.Label_Dir + "/" + LabelName)
+				Label = misc.imread(os.path.join(self.Label_Dir, LabelName) 
 			self.itr += 1
 
 			# Set Batch image size according to first image in the batch
