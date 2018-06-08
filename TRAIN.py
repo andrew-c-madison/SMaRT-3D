@@ -1,16 +1,17 @@
-# Train fully convolutional neural net for sematic segmentation
+'''
+Train fully convolutional neural net for sematic segmentation
 
-# Instructions:
-# 1) Set folder of train images in Train_Image_Dir
-# 2) Set folder for ground truth labels in Train_Label_Dir
-#    The Label Maps should be saved as png image with same name as the corresponding image and png ending
-# 3) Download pretrained vgg16 model to model_path (should be done autmatically if you have internet connection)
-#    Vgg16 pretrained Model can be download from ftp://mi.eng.cam.ac.uk/pub/mttt2/models/vgg16.npy
-#    or https://drive.google.com/file/d/0B6njwynsu2hXZWcwX0FKTGJKRWs/view?usp=sharing
-# 4) Set number of classes number in NUM_CLASSES
-# 5) Set UseValidationSet=True and set validation image folders to vaildate while training
-# 6) Run script
-
+Instructions:
+1) Set folder of train images in Train_Image_Dir
+2) Set folder for ground truth labels in Train_Label_Dir. 
+		Label maps should be png's with same name as corresponding image.
+3) Download pretrained vgg16 model to model_path; this is done automatically from:
+ 		ftp://mi.eng.cam.ac.uk/pub/mttt2/models/vgg16.npy or
+    		https://drive.google.com/file/d/0B6njwynsu2hXZWcwX0FKTGJKRWs/view?usp=sharing
+4) Set number of classes number in NUM_CLASSES
+5) Set UseValidationSet=True and set validation image folders to vaildate while training
+6) Run script
+'''
 
 import tensorflow as tf
 import numpy as np
@@ -28,24 +29,23 @@ Train_Label_Dir = os.path.join("Data", "Train", "labels") 			# Path to Training 
 Valid_Image_Dir = os.path.join("Data", "Validation", "images") 		# Path to Validation images 
 Valid_Labels_Dir = os.path.join("Data", "Validation", "labels") 	# Path to Validation labels  
 logs_dir = os.path.join("logs") 									# Path to log directory
-TrainLossTxtFile = os.path.join(logs_dir, "TrainLoss.txt") 			# Path to Training loss txt file
-ValidLossTxtFile = os.path.join(logs_dir, "ValidationLoss.txt")		# Path to Validation loss txt file
-ValidAccTxtFile = os.path.join(logs_dir, "ValidationAccuracy.txt")	# Path to Validation accuracy txt file
+TrainLossTxtFile = os.path.join(logs_dir, "TrainLoss.txt") 			# Path to Training loss record
+ValidRecTxtFile = os.path.join(logs_dir, "ValidationRecord.txt")	# Path to Validation record
 
 
 # Get pretrained model
 if not os.path.exists(logs_dir): os.makedirs(logs_dir)
 model_path = os.path.join("Model_Zoo", "vgg16.npy") 	# Path to pretrained vgg16 model
-CheckVGG16Model.CheckVGG16(model_path) 					# Check vgg16 model, download if not present
+CheckVGG16Model.CheckVGG16(model_path) 			# Check vgg16 model, download if not present
 
 
 # Define Hyperparameters 
-NUM_CLASSES = 6 			# Number of classes
-Batch_Size = 10				# Number of files per training iteration
+NUM_CLASSES = 6 		# Number of classes
+Batch_Size = 10			# Number of files per training iteration
 UseValidationSet = True 	# Validation flag
 learning_rate = 1e-5 		# Learning rate for Adam Optimizer
 Weight_Loss_Rate = 5e-4		# Weight for the weight decay loss function
-MAX_ITERATION = int(100010) # Max  number of training iteration
+MAX_ITERATION = int(100010) 	# Max  number of training iteration
 
 
 # Solver for Model
@@ -93,27 +93,19 @@ def main(argv=None):
 		saver.restore(sess, ckpt.model_checkpoint_path)
 		print("Model restored...")
 
-
 	# Create files for logging progress
 	f = open(TrainLossTxtFile, "w")
 	f.write("Training Loss\n")
-	f.write("Learn_rate\t" + str(learning_rate) + "\n")
+	f.write("Learning_rate\t" + str(learning_rate) + "\n")
 	f.write("Batch_size\t" + str(Batch_Size) + "\n")
 	f.write("Itr\tLoss")
 	f.close()
 	if UseValidationSet:
-		f = open(ValidLossTxtFile, "w")
-		f.write("Validation Loss\n")
-		f.write("Learn_rate\t" + str(learning_rate) + "\n")
+		f = open(ValidRecTxtFile, "w")
+		f.write("Validation Record\n")
+		f.write("Learning_rate\t" + str(learning_rate) + "\n")
 		f.write("Batch_size\t" + str(Batch_Size) + "\n")
-		f.write("Itr\tLoss")
-		f.close()
-		
-		f = open(ValidAccTxtFile, "w")
-		f.write("Validation Accuracy\n")
-		f.write("Learn_rate\t" + str(learning_rate) + "\n")
-		f.write("Batch_size\t" + str(Batch_Size) + "\n")
-		f.write("Itr\tAccuracy")
+		f.write("Itr\tLoss\tAccuracy")
 		f.close()
 
 	# Start Training loop: Main Training
@@ -138,7 +130,6 @@ def main(argv=None):
 				f.write("\n"+str(itr)+"\t"+str(TLoss))
 				f.close()
 
-
 		# Write and display Validation Set Loss 
 		if UseValidationSet and itr % 10 == 0:
 			SumAcc = np.float64(0.0)
@@ -152,24 +143,20 @@ def main(argv=None):
 				TLoss = sess.run(Loss, feed_dict=feed_dict)
 				SumLoss += TLoss
 
-
 				# Compute validation accuracy
 				pred = sess.run(Net.Pred, feed_dict={image: Images, keep_prob: 1.0})
 				acc = accuracy_score(np.squeeze(GTLabels).ravel(), np.squeeze(pred).ravel())
 				SumAcc += acc
 
+			# Print validation status to console
+			print("Epoch: " + str(TrainReader.Epoch))
 
 			SumAcc/=NBatches
 			SumLoss/=NBatches
 			print("Validation Loss: " + str(SumLoss))
-			with open(ValidLossTxtFile, "a") as f:
-				f.write("\n" + str(itr) + "\t" + str(SumLoss))
-				f.close()
-
-			print("Accuracy: " + str(SumAcc))
-			with open(ValidAccTxtFile, "a") as f:
-				f.write("\n" + str(itr) + "\t" + str(SumAcc))
-				f.close()
+			with open(ValidRecTxtFile, "a") as f:
+				f.write("\n" + str(itr) + "\t" + str(SumLoss) + "\t" + str(SumAcc))
+				f.close()		
 
 
 if __name__ == "__main__":
