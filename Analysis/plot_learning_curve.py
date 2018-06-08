@@ -1,9 +1,9 @@
+# Note: Monitor GPU activity at 0.5 s intervals: watch -n 0.5 nvidia-smi
+
 import os
 import numpy as np
 import argparse
 import matplotlib.pyplot as plt
-
-# Note: Monitor GPU activity at 0.5 s intervals: watch -n 0.5 nvidia-smi
 
 def make_patch_spines_invisible(ax):
     ax.set_frame_on(True)
@@ -18,31 +18,34 @@ def tick_function(i,b,n):
     return ["%d" % z for z in itr2epoch(i,b,n)]
 
 
-# Set params
-num_examples = len([f for f in os.listdir('../Data/Train/images')])
+# Input data files
+Train_Loss_txt = os.path.join("..", "logs", "TrainLoss.txt") 			# Path to Training Loss
+Train_Image_Dir = os.path.join("..", "Data", "Train", "images") 		# Path to Training images
+Valid_Rec_txt = os.path.join("..", "logs", "ValidationRecord.txt")		# Path to Validation Loss and Accuracy
 
-# Read data
-with open('../logs/TrainLoss.txt') as f:
+# Set parameters
+num_examples = len([f for f in os.listdir(Train_Image_Dir)])
+
+# Read header data to get batch size
+with open(Train_Loss_txt) as f:
 	for i, line in enumerate(f):
 		if i==2:
 			s = line.replace("\t", " ").replace("\n", "").split()
 			batch_size = int(s[1])
-      
-Training_loss = np.loadtxt('../logs/TrainLoss.txt', skiprows=4)
-Validation_loss = np.loadtxt('../logs/ValidationLoss.txt', skiprows=4)
-Validation_acc = np.loadtxt('../logs/ValidationAccuracy.txt', skiprows=4)
 
+# Read training and validation data
+Training_loss = np.loadtxt(Train_Loss_txt, skiprows=4)
+Validation_data = np.loadtxt(Valid_Rec_txt, skiprows=4)
 
-# Load Data
+# Load Data into arrays
 xT = Training_loss[:,0]
 yT = Training_loss[:,1]
 
-xV = Validation_loss[:,0]
-yV = Validation_loss[:,1]
+xV = Validation_data[:,0]
+yV = Validation_data[:,1]
 
-xA = Validation_acc[:,0]
-yA = Validation_acc[:,1]
-
+xA = Validation_data[:,0]
+yA = Validation_data[:,2]
 
 # Set up axes
 fig, ax1 = plt.subplots()
@@ -77,10 +80,10 @@ xlims = ax1.get_xlim()
 ax3.set_xlim(itr2epoch(xlims[0],batch_size, num_examples), itr2epoch(xlims[1],batch_size, num_examples))
 
 # Add legend
-# added these three lines
-lns = lns1+lns2+lns3
+lns = lns1 + lns2 + lns3
 labs = [l.get_label() for l in lns]
 plt.legend(lns, labs, loc=3)
 
+# Show plot
 fig.tight_layout()
 plt.show()
