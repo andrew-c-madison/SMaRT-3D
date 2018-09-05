@@ -67,8 +67,7 @@ def main(argv=None):
 	Net.build(image, NUM_CLASSES, keep_prob) # Create the net and load intial weights
 
 	# Get loss functions for neural net work one loss function for each set of labels
-	Loss = -tf.reduce_sum(tf.multiply(tf.to_float(tf.one_hot(tf.squeeze(GTLabel, squeeze_dims=[3]), NUM_CLASSES)), \
-				tf.log(tf.nn.softmax(Net.Prob) + 1e-12)))
+	Loss = -tf.reduce_sum(tf.multiply(tf.to_float(tf.one_hot(tf.squeeze(GTLabel, squeeze_dims=[3]), NUM_CLASSES)), tf.log(tf.nn.softmax(Net.Prob) + 1e-12)))
 
 	# Create solver for the net
 	trainable_var = tf.trainable_variables() # Collect all trainable variables for the net
